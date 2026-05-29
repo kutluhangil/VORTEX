@@ -19,6 +19,7 @@ export class Program {
 
     gl.attachShader(program, vert);
     gl.attachShader(program, frag);
+    gl.bindAttribLocation(program, 0, "aPosition");
     gl.linkProgram(program);
     gl.deleteShader(vert);
     gl.deleteShader(frag);

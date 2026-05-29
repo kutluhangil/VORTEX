@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { FluidSimulator } from "@/lib/sim/simulator";
+import { Renderer } from "@/lib/render/renderer";
 import { useSimStore } from "@/store/useSimStore";
+import { useRenderStore } from "@/store/useRenderStore";
 import { useInputStore } from "@/store/useInputStore";
 import { CanvasOverlay } from "./CanvasOverlay";
 
@@ -10,12 +12,14 @@ interface FluidCanvasProps {
   embed?: boolean;
 }
 
-// Module-level singleton so Agent 5/6 can access it via import
+// Module-level singletons for Agent 5/6 access
 export let globalSimulator: FluidSimulator | null = null;
+export let globalRenderer: Renderer | null = null;
 
 export function FluidCanvas({ embed = false }: FluidCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const simRef = useRef<FluidSimulator | null>(null);
+  const rendererRef = useRef<Renderer | null>(null);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
@@ -23,7 +27,7 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // ── Init canvas dimensions ─────────────────────────────────────────────
+    // ── Canvas dimensions ──────────────────────────────────────────────────
     const setSize = () => {
       const dpr = Math.min(window.devicePixelRatio, 2);
       canvas.width = Math.floor(canvas.clientWidth * dpr);
@@ -32,50 +36,60 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     setSize();
 
     // ── Create simulator ───────────────────────────────────────────────────
-    const store = useSimStore.getState();
+    const s = useSimStore.getState();
     let sim: FluidSimulator;
+    let renderer: Renderer;
     try {
       sim = new FluidSimulator(canvas, {
-        simResolution: store.simResolution,
-        dyeResolution: store.dyeResolution,
-        pressureIterations: store.pressureIterations,
-        curl: store.curl,
-        dissipation: store.dissipation,
+        simResolution: s.simResolution,
+        dyeResolution: s.dyeResolution,
+        pressureIterations: s.pressureIterations,
+        curl: s.curl,
+        dissipation: s.dissipation,
       });
+      renderer = new Renderer(canvas, sim);
     } catch (err) {
-      console.error("[FluidCanvas] Simulator init failed:", err);
+      console.error("[FluidCanvas] Init failed:", err);
       return;
     }
 
     simRef.current = sim;
+    rendererRef.current = renderer;
     globalSimulator = sim;
+    globalRenderer = renderer;
 
-    // ── Seed initial random splats so there's something to see ────────────
+    // Sync initial render store state
+    syncRenderStore(renderer);
+
+    // Seed splats so there's fluid on load
     seedSplats(sim);
 
     // ── RAF loop ───────────────────────────────────────────────────────────
     const loop = (time: number) => {
+      const dt = Math.min((time - lastTimeRef.current) / 1000, 0.017);
+      lastTimeRef.current = time;
+
       const paused = useSimStore.getState().paused;
       if (!paused) {
-        const dt = Math.min((time - lastTimeRef.current) / 1000, 0.017);
-        lastTimeRef.current = time;
+        // Sync sim params
+        const ss = useSimStore.getState();
+        sim.opts.curl = ss.curl;
+        sim.opts.pressureIterations = ss.pressureIterations;
+        sim.opts.dissipation = ss.dissipation;
 
-        // Sync live store values into simulator opts
-        const s = useSimStore.getState();
-        sim.opts.curl = s.curl;
-        sim.opts.pressureIterations = s.pressureIterations;
-        sim.opts.dissipation = s.dissipation;
+        // Sync render params
+        syncRenderStore(renderer);
 
-        // Sync obstacle from input store
+        // Sync obstacle
         const input = useInputStore.getState();
         if (input.imageObstacle !== null) {
           sim.setObstacle(input.imageObstacle);
         }
 
         sim.step(dt);
-        sim.render();
+        renderer.render();
       }
-      lastTimeRef.current = time;
+
       rafRef.current = requestAnimationFrame(loop);
     };
 
@@ -105,9 +119,12 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
       cancelAnimationFrame(rafRef.current);
       document.removeEventListener("visibilitychange", onVisibility);
       ro.disconnect();
+      renderer.dispose();
       sim.dispose();
       simRef.current = null;
+      rendererRef.current = null;
       globalSimulator = null;
+      globalRenderer = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -124,7 +141,18 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
   );
 }
 
-// ── Seed random splats ──────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function syncRenderStore(renderer: Renderer): void {
+  const r = useRenderStore.getState();
+  renderer.bloomEnabled = r.bloomEnabled;
+  renderer.bloomIntensity = r.bloomIntensity;
+  renderer.sunraysEnabled = r.sunraysEnabled;
+  renderer.sunraysIntensity = r.sunraysIntensity;
+  renderer.vignetteEnabled = r.vignetteEnabled;
+  renderer.vignetteIntensity = r.vignetteIntensity;
+}
+
 function seedSplats(sim: FluidSimulator, count = 6): void {
   const colors: [number, number, number][] = [
     [1.0, 0.3, 0.1],
@@ -142,7 +170,6 @@ function seedSplats(sim: FluidSimulator, count = 6): void {
     const strength = 200 + Math.random() * 400;
     const color = colors[i % colors.length] ?? ([1, 1, 1] as [number, number, number]);
 
-    // Queue several splats along a direction to seed velocity + dye
     for (let j = 0; j < 3; j++) {
       sim.splat(
         x + (Math.random() - 0.5) * 0.05,
