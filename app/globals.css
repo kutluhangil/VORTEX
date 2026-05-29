@@ -76,6 +76,60 @@ body {
   border-radius: 2px;
 }
 
+/* Slider */
+input[type="range"].flow-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #fb7185 0%,
+    #fb7185 var(--slider-pct, 0%),
+    rgba(255, 255, 255, 0.1) var(--slider-pct, 0%),
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  cursor: pointer;
+  outline: none;
+  border: none;
+}
+input[type="range"].flow-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fb7185;
+  cursor: pointer;
+  box-shadow: 0 0 0 3px rgba(251, 113, 133, 0.2);
+  transition: box-shadow 150ms ease;
+}
+input[type="range"].flow-slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 0 5px rgba(251, 113, 133, 0.3);
+}
+input[type="range"].flow-slider::-moz-range-thumb {
+  border: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fb7185;
+  cursor: pointer;
+}
+input[type="range"].flow-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Pulsing record dot */
+@keyframes record-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+.record-pulse {
+  animation: record-pulse 1.6s ease-in-out infinite;
+}
+
 /* Glass utility */
 .glass {
   background: var(--glass-bg);

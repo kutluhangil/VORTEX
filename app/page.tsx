@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FluidCanvas } from "@/components/canvas/FluidCanvas";
+import { UIOverlay } from "@/components/UIOverlay";
 import { checkWebGL2Support } from "@/lib/webgl/extensions";
 
 export default function Home() {
@@ -45,6 +46,7 @@ export default function Home() {
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
       <FluidCanvas />
+      <UIOverlay />
     </main>
   );
 }
