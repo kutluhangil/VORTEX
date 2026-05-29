@@ -1,2 +1,1 @@
-// Agent 3 (Sim Engineer) implements
-export {};
+export { FluidSimulator } from './simulator';
