@@ -23,11 +23,12 @@ import clearFrag from "@/lib/sim/shaders/clear.frag.glsl";
 import displayFrag from "@/lib/render/shaders/display.frag.glsl";
 
 export interface SplatData {
-  x: number;      // UV [0,1]
-  y: number;      // UV [0,1]
-  dx: number;     // velocity delta
+  x: number;                         // UV [0,1]
+  y: number;                         // UV [0,1]
+  dx: number;                        // velocity delta
   dy: number;
   color: [number, number, number];
+  radius?: number;                   // shader radius, default 0.0015
 }
 
 export interface SimOptions {
@@ -246,7 +247,7 @@ export class FluidSimulator {
       if (u["point"])
         gl.uniform2f(u["point"], s.x, s.y);
       if (u["radius"])
-        gl.uniform1f(u["radius"], this._correctRadius(0.0015));
+        gl.uniform1f(u["radius"], this._correctRadius(s.radius ?? 0.0015));
       this._bindFBO(this.velocity.write);
       this._drawQuad();
       this.velocity.swap();
@@ -265,7 +266,7 @@ export class FluidSimulator {
       if (ud["point"])
         gl.uniform2f(ud["point"], s.x, s.y);
       if (ud["radius"])
-        gl.uniform1f(ud["radius"], this._correctRadius(0.0015));
+        gl.uniform1f(ud["radius"], this._correctRadius(s.radius ?? 0.0015));
       this._bindFBO(this.density.write);
       this._drawQuad();
       this.density.swap();
@@ -422,8 +423,8 @@ export class FluidSimulator {
     }
   }
 
-  splat(x: number, y: number, dx: number, dy: number, color: [number, number, number]): void {
-    this._splatQueue.push({ x, y, dx, dy, color });
+  splat(x: number, y: number, dx: number, dy: number, color: [number, number, number], radius?: number): void {
+    this._splatQueue.push({ x, y, dx, dy, color, radius });
   }
 
   setObstacle(imageData: ImageData | null): void {
