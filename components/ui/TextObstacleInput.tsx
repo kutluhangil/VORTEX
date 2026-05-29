@@ -1,12 +1,17 @@
 "use client";
 
-// Agent 6 (Sensor) implements canvas-to-texture pipeline
 import { X } from "lucide-react";
 import { useInputStore } from "@/store/useInputStore";
 
 export function TextObstacleInput({ onClose }: { onClose: () => void }) {
   const textObstacle = useInputStore((s) => s.textObstacle);
   const setTextObstacle = useInputStore((s) => s.setTextObstacle);
+
+  const handleChange = (value: string) => {
+    setTextObstacle(value);
+    // Clear any image obstacle so they don't conflict
+    if (value) useInputStore.getState().setImageObstacle(null);
+  };
 
   return (
     <div
@@ -25,7 +30,7 @@ export function TextObstacleInput({ onClose }: { onClose: () => void }) {
       <input
         type="text"
         value={textObstacle}
-        onChange={(e) => setTextObstacle(e.target.value)}
+        onChange={(e) => handleChange(e.target.value)}
         placeholder="Type something..."
         maxLength={20}
         className="w-full bg-transparent border rounded-lg px-3 py-2 text-sm outline-none transition-colors"
@@ -45,7 +50,7 @@ export function TextObstacleInput({ onClose }: { onClose: () => void }) {
 
       {textObstacle && (
         <button
-          onClick={() => setTextObstacle("")}
+          onClick={() => { setTextObstacle(""); useInputStore.getState().setImageObstacle(null); }}
           className="flex items-center gap-1.5 text-[10px] transition-colors"
           style={{ color: "#6b6b7a" }}
           onMouseEnter={(e) => (e.currentTarget.style.color = "#fb7185")}

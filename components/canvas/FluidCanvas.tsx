@@ -3,6 +3,9 @@
 import { useEffect, useRef } from "react";
 import { FluidSimulator } from "@/lib/sim/simulator";
 import { Renderer } from "@/lib/render/renderer";
+import { AudioAnalyser } from "@/lib/input/audio";
+import { WebcamFlow } from "@/lib/input/webcam";
+import { textToObstacleData } from "@/lib/input/obstacle-text";
 import { useSimStore } from "@/store/useSimStore";
 import { useRenderStore } from "@/store/useRenderStore";
 import { useInputStore } from "@/store/useInputStore";
@@ -12,14 +15,11 @@ interface FluidCanvasProps {
   embed?: boolean;
 }
 
-// Module-level singletons for Agent 5/6 access
 export let globalSimulator: FluidSimulator | null = null;
 export let globalRenderer: Renderer | null = null;
 
 export function FluidCanvas({ embed = false }: FluidCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const simRef = useRef<FluidSimulator | null>(null);
-  const rendererRef = useRef<Renderer | null>(null);
   const rafRef = useRef<number>(0);
   const lastTimeRef = useRef<number>(0);
 
@@ -27,7 +27,6 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // ── Canvas dimensions ──────────────────────────────────────────────────
     const setSize = () => {
       const dpr = Math.min(window.devicePixelRatio, 2);
       canvas.width = Math.floor(canvas.clientWidth * dpr);
@@ -35,7 +34,7 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     };
     setSize();
 
-    // ── Create simulator ───────────────────────────────────────────────────
+    // ── Create sim + renderer ──────────────────────────────────────────────
     const s = useSimStore.getState();
     let sim: FluidSimulator;
     let renderer: Renderer;
@@ -53,16 +52,18 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
       return;
     }
 
-    simRef.current = sim;
-    rendererRef.current = renderer;
     globalSimulator = sim;
     globalRenderer = renderer;
-
-    // Sync initial render store state
     syncRenderStore(renderer);
-
-    // Seed splats so there's fluid on load
     seedSplats(sim);
+
+    // ── Sensors ────────────────────────────────────────────────────────────
+    const audio = new AudioAnalyser(sim);
+    const webcam = new WebcamFlow(sim);
+
+    // Obstacle change tracking — only call sim.setObstacle on actual change
+    let prevImageObstacle: ImageData | null = null;
+    let prevTextObstacle = "";
 
     // ── RAF loop ───────────────────────────────────────────────────────────
     const loop = (time: number) => {
@@ -71,18 +72,48 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
 
       const paused = useSimStore.getState().paused;
       if (!paused) {
-        // Sync sim params
         const ss = useSimStore.getState();
         sim.opts.curl = ss.curl;
         sim.opts.pressureIterations = ss.pressureIterations;
         sim.opts.dissipation = ss.dissipation;
 
-        // Sync render params
         syncRenderStore(renderer);
 
-        // Sync obstacle
         const input = useInputStore.getState();
-        if (input.imageObstacle !== null) {
+
+        // ── Audio ──────────────────────────────────────────────────────────
+        if (input.audioEnabled && !audio.running) {
+          audio.start(input.audioSensitivity).catch(() => {});
+        } else if (!input.audioEnabled && audio.running) {
+          audio.stop();
+        }
+
+        // ── Webcam ─────────────────────────────────────────────────────────
+        if (input.cameraEnabled && !webcam.running) {
+          webcam.start().catch(() => {});
+        } else if (!input.cameraEnabled && webcam.running) {
+          webcam.stop();
+        }
+        if (webcam.running) {
+          webcam.tick(input.webcamFlowStrength, input.splatForce);
+        }
+
+        // ── Text obstacle → ImageData (on change, debounced by RAF) ───────
+        if (input.textObstacle !== prevTextObstacle) {
+          prevTextObstacle = input.textObstacle;
+          if (input.textObstacle) {
+            const td = textToObstacleData(input.textObstacle, 512, 256);
+            if (td) useInputStore.getState().setImageObstacle(td);
+          } else if (!input.imageObstacle) {
+            // Text cleared and no image → clear obstacle
+            sim.setObstacle(null);
+            prevImageObstacle = null;
+          }
+        }
+
+        // ── Image obstacle → sim (only on reference change) ────────────────
+        if (input.imageObstacle !== prevImageObstacle) {
+          prevImageObstacle = input.imageObstacle;
           sim.setObstacle(input.imageObstacle);
         }
 
@@ -114,15 +145,14 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     });
     ro.observe(canvas);
 
-    // ── Cleanup ────────────────────────────────────────────────────────────
     return () => {
       cancelAnimationFrame(rafRef.current);
       document.removeEventListener("visibilitychange", onVisibility);
       ro.disconnect();
+      audio.dispose();
+      webcam.dispose();
       renderer.dispose();
       sim.dispose();
-      simRef.current = null;
-      rendererRef.current = null;
       globalSimulator = null;
       globalRenderer = null;
     };
@@ -141,7 +171,7 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
   );
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 function syncRenderStore(renderer: Renderer): void {
   const r = useRenderStore.getState();
@@ -162,14 +192,12 @@ function seedSplats(sim: FluidSimulator, count = 6): void {
     [1.0, 0.8, 0.1],
     [0.1, 0.8, 0.9],
   ];
-
   for (let i = 0; i < count; i++) {
     const x = Math.random();
     const y = Math.random();
     const angle = Math.random() * Math.PI * 2;
     const strength = 200 + Math.random() * 400;
     const color = colors[i % colors.length] ?? ([1, 1, 1] as [number, number, number]);
-
     for (let j = 0; j < 3; j++) {
       sim.splat(
         x + (Math.random() - 0.5) * 0.05,

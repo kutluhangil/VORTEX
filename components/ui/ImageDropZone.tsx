@@ -1,9 +1,9 @@
 "use client";
 
-// Agent 6 (Sensor) implements full drag-drop and obstacle texture logic
 import { useState, useRef } from "react";
 import { Upload, X } from "lucide-react";
 import { useInputStore } from "@/store/useInputStore";
+import { preprocessImageObstacle } from "@/lib/input/obstacle-image";
 import { cn } from "@/lib/utils/cn";
 
 export function ImageDropZone({ onClose }: { onClose: () => void }) {
@@ -12,19 +12,24 @@ export function ImageDropZone({ onClose }: { onClose: () => void }) {
   const imageObstacle = useInputStore((s) => s.imageObstacle);
   const setImageObstacle = useInputStore((s) => s.setImageObstacle);
 
+  const obstacleThreshold = useInputStore((s) => s.obstacleThreshold);
+
   const handleFile = (file: File) => {
-    // Agent 6 will implement the actual ImageData extraction
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      const ctx = canvas.getContext("2d");
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const ctx = c.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
-      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      setImageObstacle(data);
+      const raw = ctx.getImageData(0, 0, c.width, c.height);
+      // Pre-process: threshold + normalise to 512×512
+      const processed = preprocessImageObstacle(raw, 512, obstacleThreshold);
+      setImageObstacle(processed);
+      // Also clear any text obstacle so they don't conflict
+      useInputStore.getState().setTextObstacle("");
       URL.revokeObjectURL(url);
     };
     img.src = url;
