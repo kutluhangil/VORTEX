@@ -15,14 +15,21 @@ uniform float bloomEnabled;    // 1.0 / 0.0
 uniform float sunraysEnabled;
 uniform float vignetteEnabled;
 
-const float EXPOSURE = 2.5;
+const float EXPOSURE = 2.0;
 
 vec3 linearToGamma(vec3 c) {
     return pow(max(c, vec3(0.0)), vec3(0.4545));
 }
 
+const float BLACK_POINT = 0.015;
+
 void main () {
     vec3 dye = max(texture(uTexture, vUv).rgb, vec3(0.0));
+
+    // 0) Black-point subtract: thin residual dye (idle haze, accumulated
+    //    low-dissipation film) drops to pure black, so empty space stays
+    //    clean instead of washing to grey. Splats keep their mass.
+    dye = max(dye - vec3(BLACK_POINT), vec3(0.0));
 
     // 1) Tonemap the dye itself into [0,1]. exp curve keeps black black
     //    (exp(-0)=1 → 0) and rolls off accumulated highlights so dense dye

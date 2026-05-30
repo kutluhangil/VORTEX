@@ -23,7 +23,7 @@ function rndColor(): [number, number, number] {
 }
 
 const IDLE_TIMEOUT = 3000;
-const IDLE_INTERVAL = 900;
+const IDLE_INTERVAL = 1600; // gentler ambient cadence so low-dissipation modes don't haze up
 
 export class PointerHandler {
   private sim: FluidSimulator;
@@ -115,11 +115,11 @@ export class PointerHandler {
     const x = Math.random();
     const y = Math.random();
     const a = Math.random() * Math.PI * 2;
-    const f = this.opts.splatForce * 0.25;
+    const f = this.opts.splatForce * 0.2;
     const base = rndColor();
-    // Softer, decorative — 60 % brightness
-    const color: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.6];
+    // Softer, decorative — 40 % brightness so ambient dye stays sparse
+    const color: [number, number, number] = [base[0] * 0.4, base[1] * 0.4, base[2] * 0.4];
     this.sim.splat(x, y, Math.cos(a) * f, Math.sin(a) * f, color,
-      toShaderRadius(this.opts.splatRadius * 1.6));
+      toShaderRadius(this.opts.splatRadius * 1.4));
   }
 }
