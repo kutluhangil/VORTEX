@@ -1,12 +1,14 @@
 "use client";
 
-// Embeddable widget — /embed?preset=aurora-nights&mode=nebula&controls=false&interactive=true
-// Agent 8 (Recorder) will implement full embed logic
-import { useEffect, useState } from "react";
+// Embeddable widget — /embed?preset=aurora-nights&interactive=true
+// Preset/mode are applied inside FluidCanvas via applyFromURL().
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { FluidCanvas } from "@/components/canvas/FluidCanvas";
 import { checkWebGL2Support } from "@/lib/webgl/extensions";
 
-export default function EmbedPage() {
+function EmbedInner() {
+  const params = useSearchParams();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -15,9 +17,20 @@ export default function EmbedPage() {
 
   if (!ready) return <div className="fixed inset-0 bg-black" />;
 
+  const interactive = params.get("interactive") === "true";
+
   return (
     <main className="fixed inset-0 overflow-hidden bg-black">
-      <FluidCanvas embed />
+      {/* embed={!interactive}: when interactive, mount the pointer overlay */}
+      <FluidCanvas embed={!interactive} />
     </main>
+  );
+}
+
+export default function EmbedPage() {
+  return (
+    <Suspense fallback={<div className="fixed inset-0 bg-black" />}>
+      <EmbedInner />
+    </Suspense>
   );
 }

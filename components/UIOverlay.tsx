@@ -10,6 +10,7 @@ import { CommandPalette } from "./ui/CommandPalette";
 import { RecordingIndicator } from "./ui/RecordingIndicator";
 import { PresetGallery } from "./modals/PresetGallery";
 import { ExportModal } from "./modals/ExportModal";
+import { RecorderController } from "./RecorderController";
 
 const IDLE_TIMEOUT = 3000;
 const FADE_OPACITY = 0.15;
@@ -57,10 +58,11 @@ export function UIOverlay() {
     return () => document.removeEventListener("keydown", handler);
   }, [cinemaMode, setCinemaMode]);
 
-  // Cinema mode: only RecordingIndicator visible
+  // Cinema mode: only RecordingIndicator visible (RecorderController still runs)
   if (cinemaMode) {
     return (
       <div className="fixed inset-0 z-40" style={{ pointerEvents: "none" }}>
+        <RecorderController />
         <RecordingIndicator />
         <CinemaHint />
       </div>
@@ -75,6 +77,9 @@ export function UIOverlay() {
       onPointerMove={resetIdle}
       onPointerDown={resetIdle}
     >
+      {/* Headless: drives MediaRecorder from the recording store flag */}
+      <RecorderController />
+
       {/* RecordingIndicator: always at full opacity — rendered OUTSIDE the fade wrapper */}
       <RecordingIndicator />
 

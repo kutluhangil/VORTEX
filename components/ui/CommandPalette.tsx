@@ -47,6 +47,7 @@ export function CommandPalette() {
   const cameraEnabled = useInputStore((s) => s.cameraEnabled);
   const setRecording = useRecordStore((s) => s.setRecording);
   const recording = useRecordStore((s) => s.recording);
+  const setExportModalOpen = useRecordStore((s) => s.setExportModalOpen);
 
   const [query, setQuery] = useState("");
   const [selectedIdx, setSelectedIdx] = useState(0);
@@ -125,6 +126,13 @@ export function CommandPalette() {
       category: "Export",
       kbd: "⌘⇧R",
       action: () => { setRecording(!recording); setOpen(false); },
+    },
+    {
+      id: "export",
+      title: "Export / Share",
+      subtitle: "PNG · 4K · Video · GIF · Link",
+      category: "Export",
+      action: () => { setExportModalOpen(true); setOpen(false); },
     },
     {
       id: "cinema",

@@ -7,6 +7,7 @@ import { AudioAnalyser } from "@/lib/input/audio";
 import { WebcamFlow } from "@/lib/input/webcam";
 import { textToObstacleData } from "@/lib/input/obstacle-text";
 import { applyMode } from "@/lib/presets/apply";
+import { applyFromURL } from "@/lib/export/share";
 import { getRandomPaletteColor } from "@/lib/presets/palette";
 import { useSimStore } from "@/store/useSimStore";
 import { useRenderStore } from "@/store/useRenderStore";
@@ -57,8 +58,10 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     globalSimulator = sim;
     globalRenderer = renderer;
 
-    // Apply the active mode so palette + params + fx are initialised
+    // Apply the active mode so palette + params + fx are initialised,
+    // then override from URL params (?preset= / ?mode=) if present
     applyMode(useRenderStore.getState().activeMode);
+    applyFromURL();
     syncRenderStore(renderer);
     seedSplats(sim);
 
