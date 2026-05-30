@@ -21,6 +21,7 @@ export function CanvasOverlay({ canvasRef }: CanvasOverlayProps) {
     let unsubInput: (() => void) | null = null;
     let raf = 0;
     let disposed = false;
+    let cleanupListeners: (() => void) | null = null;
 
     // React effects run children-before-parents, so globalSimulator may not
     // be assigned yet. Poll each animation frame until it appears.
@@ -72,9 +73,8 @@ export function CanvasOverlay({ canvasRef }: CanvasOverlayProps) {
       overlay.addEventListener("pointerup", onUp);
       overlay.addEventListener("pointercancel", onCancel);
 
-      // Store cleanup fn on the element so the outer return can call it
-      type WithCleanup = HTMLDivElement & { _cleanup?: () => void };
-      (overlay as WithCleanup)._cleanup = () => {
+      // Closure-scoped cleanup — captures this specific overlay element
+      cleanupListeners = () => {
         overlay.removeEventListener("pointerdown", onDown);
         overlay.removeEventListener("pointermove", onMove);
         overlay.removeEventListener("pointerup", onUp);
@@ -90,8 +90,7 @@ export function CanvasOverlay({ canvasRef }: CanvasOverlayProps) {
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      type WithCleanup = HTMLDivElement & { _cleanup?: () => void };
-      (overlayRef.current as WithCleanup | null)?._cleanup?.();
+      cleanupListeners?.();
     };
   }, [canvasRef]);
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { FluidSimulator } from "@/lib/sim/simulator";
+import { AdaptiveQuality } from "@/lib/sim/adaptive";
 import { Renderer } from "@/lib/render/renderer";
 import { AudioAnalyser } from "@/lib/input/audio";
 import { WebcamFlow } from "@/lib/input/webcam";
@@ -69,6 +70,10 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     const audio = new AudioAnalyser(sim);
     const webcam = new WebcamFlow(sim);
 
+    // ── Adaptive quality ───────────────────────────────────────────────────
+    const adaptive = new AdaptiveQuality(sim);
+    let lastFpsReport = 0;
+
     // Obstacle change tracking — only call sim.setObstacle on actual change
     let prevImageObstacle: ImageData | null = null;
     let prevTextObstacle = "";
@@ -127,6 +132,14 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
 
         sim.step(dt);
         renderer.render();
+
+        // ── Adaptive quality + FPS reporting ───────────────────────────────
+        adaptive.enabled = ss.autoQuality;
+        adaptive.tick(time);
+        if (time - lastFpsReport > 500) {
+          lastFpsReport = time;
+          useSimStore.getState().setFps(Math.round(sim.getFPS()));
+        }
       }
 
       rafRef.current = requestAnimationFrame(loop);
@@ -164,7 +177,7 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
       globalSimulator = null;
       globalRenderer = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>

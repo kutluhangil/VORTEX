@@ -1,6 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#000000",
+};
 
 const inter = Inter({
   subsets: ["latin"],
@@ -14,29 +23,67 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+
 export const metadata: Metadata = {
   title: "FLOW — Premium Fluid Playground",
   description:
     "Real-time WebGL fluid simulation with audio-reactive inputs, image obstacles, 12+ curated presets. The fluid playground for 2026.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
+  applicationName: "FLOW",
+  keywords: [
+    "fluid simulation",
+    "WebGL",
+    "Navier-Stokes",
+    "audio reactive",
+    "generative art",
+    "interactive art",
+    "shader",
+    "creative coding",
+  ],
+  authors: [{ name: "kutluhangil", url: "https://github.com/kutluhangil" }],
+  creator: "kutluhangil",
   openGraph: {
     title: "FLOW — Premium Fluid Playground",
-    description: "Audio-reactive WebGL fluid simulation. Drop a logo, play music, wave at the camera.",
+    description:
+      "Audio-reactive WebGL fluid simulation. Drop a logo, play music, wave at the camera.",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630 }],
+    url: SITE_URL,
+    siteName: "FLOW",
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "FLOW" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "FLOW — Premium Fluid Playground",
     description: "Audio-reactive WebGL fluid simulation.",
-    images: ["/og.png"],
+    images: ["/api/og"],
   },
+  robots: { index: true, follow: true },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "FLOW",
+  description:
+    "Real-time WebGL fluid simulation with audio-reactive inputs, image obstacles, and 12+ curated presets.",
+  url: SITE_URL,
+  applicationCategory: "MultimediaApplication",
+  operatingSystem: "Any (WebGL2 browser)",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  author: { "@type": "Person", name: "kutluhangil" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+        {children}
+      </body>
     </html>
   );
 }

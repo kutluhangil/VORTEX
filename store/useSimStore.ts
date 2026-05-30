@@ -9,6 +9,8 @@ export interface SimState {
   simResolution: number;
   dyeResolution: number;
   paused: boolean;
+  autoQuality: boolean;
+  fps: number;
 
   setCurl: (v: number) => void;
   setViscosity: (v: number) => void;
@@ -18,6 +20,8 @@ export interface SimState {
   setDyeResolution: (v: number) => void;
   setPaused: (v: boolean) => void;
   togglePaused: () => void;
+  setAutoQuality: (v: boolean) => void;
+  setFps: (v: number) => void;
   reset: () => void;
 }
 
@@ -32,6 +36,8 @@ const defaults = {
   simResolution: isMobile ? 256 : 512,
   dyeResolution: isMobile ? 1024 : 1024,
   paused: false,
+  autoQuality: true,
+  fps: 60,
 };
 
 export const useSimStore = create<SimState>()(
@@ -46,7 +52,10 @@ export const useSimStore = create<SimState>()(
       setDyeResolution: (v) => set({ dyeResolution: v }),
       setPaused: (v) => set({ paused: v }),
       togglePaused: () => set((s) => ({ paused: !s.paused })),
-      reset: () => set(defaults),
+      setAutoQuality: (v) => set({ autoQuality: v }),
+      setFps: (v) => set({ fps: v }),
+      // Preserve user-facing autoQuality preference across reset
+      reset: () => set((s) => ({ ...defaults, autoQuality: s.autoQuality })),
     }),
     { name: "sim" },
   ),

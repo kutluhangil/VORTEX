@@ -36,6 +36,10 @@ export function SidePanel() {
   const setDissipation = useSimStore((s) => s.setDissipation);
   const pressureIterations = useSimStore((s) => s.pressureIterations);
   const setPressureIterations = useSimStore((s) => s.setPressureIterations);
+  const autoQuality = useSimStore((s) => s.autoQuality);
+  const setAutoQuality = useSimStore((s) => s.setAutoQuality);
+  const fps = useSimStore((s) => s.fps);
+  const simResolution = useSimStore((s) => s.simResolution);
 
   const bloomEnabled = useRenderStore((s) => s.bloomEnabled);
   const bloomIntensity = useRenderStore((s) => s.bloomIntensity);
@@ -231,6 +235,41 @@ export function SidePanel() {
                   step={0.05}
                   onChange={setObstacleThreshold}
                 />
+              </Section>
+
+              <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />
+
+              <Section title="Performance">
+                <Toggle
+                  label="Auto-quality"
+                  checked={autoQuality}
+                  onChange={setAutoQuality}
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium" style={{ color: "#a8a8b3" }}>
+                    FPS
+                  </span>
+                  <span
+                    className="text-xs tabular-nums"
+                    style={{
+                      color: fps >= 50 ? "#4ade80" : fps >= 30 ? "#fbbf24" : "#f87171",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  >
+                    {fps}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium" style={{ color: "#a8a8b3" }}>
+                    Sim resolution
+                  </span>
+                  <span
+                    className="text-xs tabular-nums"
+                    style={{ color: "#6b6b7a", fontFamily: "var(--font-mono)" }}
+                  >
+                    {simResolution}²
+                  </span>
+                </div>
               </Section>
 
               <div style={{ height: 1, background: "rgba(255,255,255,0.06)" }} />

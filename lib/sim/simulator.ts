@@ -194,7 +194,7 @@ export class FluidSimulator {
 
   // ─── Pipeline passes ──────────────────────────────────────────────────────
 
-  private _stepCurl(dt: number): void {
+  private _stepCurl(): void {
     const { gl } = this;
     this.curlProg.bind();
     const u = this.curlProg.uniforms;
@@ -403,7 +403,7 @@ export class FluidSimulator {
   step(dt: number): void {
     if (dt <= 0) return;
 
-    this._stepCurl(dt);
+    this._stepCurl();
     this._stepVorticity(dt);
     this._stepSplats();
     this._stepDivergence();
@@ -494,6 +494,25 @@ export class FluidSimulator {
     this._initFBOs(opts.simResolution, opts.dyeResolution);
     this.canvas.width = width;
     this.canvas.height = height;
+  }
+
+  /**
+   * Change the simulation resolution at runtime (adaptive quality).
+   * Rebuilds velocity/pressure/divergence/curl FBOs; density (dye) is kept
+   * if dyeRes is unchanged so the visible image survives the switch.
+   */
+  setResolution(simRes: number, dyeRes?: number): void {
+    const { opts } = this;
+    const newDye = dyeRes ?? opts.dyeResolution;
+    if (simRes === opts.simResolution && newDye === opts.dyeResolution) return;
+    opts.simResolution = simRes;
+    opts.dyeResolution = newDye;
+    this._deleteFBOs();
+    this._initFBOs(simRes, newDye);
+  }
+
+  get simResolution(): number {
+    return this.opts.simResolution;
   }
 
   getFPS(): number {
