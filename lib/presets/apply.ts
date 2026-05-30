@@ -15,20 +15,73 @@ interface ApplyConfig {
   vignette: number;
 }
 
+const TWEEN_MS = 500;
+let tweenRaf = 0;
+
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** Smoothly tween the numeric sim/render params to the target config over
+ *  ~500ms. Palette + mode id snap immediately (existing dye flows out as new
+ *  colours come in — reads as a natural crossfade without a LUT remap). */
 function applyConfig(c: ApplyConfig): void {
+  cancelAnimationFrame(tweenRaf);
+
   const sim = useSimStore.getState();
-  sim.setCurl(c.params.curl);
-  sim.setViscosity(c.params.viscosity);
-  sim.setDissipation(c.params.dissipation);
-
-  useInputStore.getState().setSplatRadius(c.params.splatRadius);
-
   const render = useRenderStore.getState();
-  render.setBloom(c.bloom > 0, c.bloom);
-  render.setSunrays(c.sunrays > 0, c.sunrays);
-  render.setVignette(c.vignette > 0, c.vignette);
+  const input = useInputStore.getState();
 
+  // Snapshot start values
+  const from = {
+    curl: sim.curl,
+    viscosity: sim.viscosity,
+    dissipation: sim.dissipation,
+    splatRadius: input.splatRadius,
+    bloom: render.bloomEnabled ? render.bloomIntensity : 0,
+    sunrays: render.sunraysEnabled ? render.sunraysIntensity : 0,
+    vignette: render.vignetteEnabled ? render.vignetteIntensity : 0,
+  };
+  const to = {
+    curl: c.params.curl,
+    viscosity: c.params.viscosity,
+    dissipation: c.params.dissipation,
+    splatRadius: c.params.splatRadius,
+    bloom: c.bloom,
+    sunrays: c.sunrays,
+    vignette: c.vignette,
+  };
+
+  // Palette swaps immediately
   setActivePalette(c.palette);
+
+  const start = performance.now();
+  const tick = (now: number) => {
+    const t = Math.min(1, (now - start) / TWEEN_MS);
+    const e = easeInOut(t);
+    const s = useSimStore.getState();
+    const r = useRenderStore.getState();
+    s.setCurl(lerp(from.curl, to.curl, e));
+    s.setViscosity(lerp(from.viscosity, to.viscosity, e));
+    s.setDissipation(lerp(from.dissipation, to.dissipation, e));
+    useInputStore.getState().setSplatRadius(lerp(from.splatRadius, to.splatRadius, e));
+    r.setBloom(to.bloom > 0, lerp(from.bloom, to.bloom, e));
+    r.setSunrays(to.sunrays > 0, lerp(from.sunrays, to.sunrays, e));
+    r.setVignette(to.vignette > 0, lerp(from.vignette, to.vignette, e));
+    if (t < 1) tweenRaf = requestAnimationFrame(tick);
+  };
+
+  if (typeof requestAnimationFrame === "undefined") {
+    // SSR / non-browser fallback: set instantly
+    sim.setCurl(to.curl);
+    sim.setViscosity(to.viscosity);
+    sim.setDissipation(to.dissipation);
+    input.setSplatRadius(to.splatRadius);
+    render.setBloom(to.bloom > 0, to.bloom);
+    render.setSunrays(to.sunrays > 0, to.sunrays);
+    render.setVignette(to.vignette > 0, to.vignette);
+    return;
+  }
+  tweenRaf = requestAnimationFrame(tick);
 }
 
 /** Apply a base mode: sim params + render fx + palette + active mode id. */

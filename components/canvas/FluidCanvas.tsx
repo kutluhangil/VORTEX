@@ -15,6 +15,7 @@ import { useSimStore } from "@/store/useSimStore";
 import { useRenderStore } from "@/store/useRenderStore";
 import { usePresetStore } from "@/store/usePresetStore";
 import { useInputStore } from "@/store/useInputStore";
+import { useToastStore } from "@/store/useToastStore";
 import { CanvasOverlay } from "./CanvasOverlay";
 
 // First-visit landing preset — vivid, shows off colour + bloom
@@ -88,6 +89,11 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     const adaptive = new AdaptiveQuality(sim);
     let lastFpsReport = 0;
 
+    // Sensor start guards — prevent re-requesting getUserMedia every frame
+    let audioAttempted = false;
+    let webcamAttempted = false;
+    const addToast = useToastStore.getState().addToast;
+
     // Obstacle change tracking — only call sim.setObstacle on actual change
     let prevImageObstacle: ImageData | null = null;
     let prevTextObstacle = "";
@@ -103,23 +109,39 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
         sim.opts.curl = ss.curl;
         sim.opts.pressureIterations = ss.pressureIterations;
         sim.opts.dissipation = ss.dissipation;
+        // viscosity (0–0.005) → velocity damping (0–0.3): higher = thicker/syrupy
+        sim.opts.velocityDissipation = ss.viscosity * 60;
 
         syncRenderStore(renderer);
 
         const input = useInputStore.getState();
 
-        // ── Audio ──────────────────────────────────────────────────────────
-        if (input.audioEnabled && !audio.running) {
-          audio.start(input.audioSensitivity).catch(() => {});
-        } else if (!input.audioEnabled && audio.running) {
-          audio.stop();
+        // ── Audio (single start attempt; revert toggle + toast on failure) ──
+        if (input.audioEnabled && !audio.running && !audioAttempted) {
+          audioAttempted = true;
+          audio.start(input.audioSensitivity).then(() => {
+            if (audio.error) {
+              addToast("error", "Microphone unavailable — permission denied");
+              useInputStore.getState().setAudioEnabled(false);
+            }
+          });
+        } else if (!input.audioEnabled) {
+          if (audio.running) audio.stop();
+          audioAttempted = false;
         }
 
-        // ── Webcam ─────────────────────────────────────────────────────────
-        if (input.cameraEnabled && !webcam.running) {
-          webcam.start().catch(() => {});
-        } else if (!input.cameraEnabled && webcam.running) {
-          webcam.stop();
+        // ── Webcam (same guarded pattern) ──────────────────────────────────
+        if (input.cameraEnabled && !webcam.running && !webcamAttempted) {
+          webcamAttempted = true;
+          webcam.start().then(() => {
+            if (webcam.error) {
+              addToast("error", "Camera unavailable — permission denied");
+              useInputStore.getState().setCameraEnabled(false);
+            }
+          });
+        } else if (!input.cameraEnabled) {
+          if (webcam.running) webcam.stop();
+          webcamAttempted = false;
         }
         if (webcam.running) {
           webcam.tick(input.webcamFlowStrength, input.splatForce);

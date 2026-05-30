@@ -8,6 +8,7 @@ import { Dock } from "./ui/Dock";
 import { SidePanel } from "./ui/SidePanel";
 import { CommandPalette } from "./ui/CommandPalette";
 import { RecordingIndicator } from "./ui/RecordingIndicator";
+import { Toaster } from "./ui/Toaster";
 import { PresetGallery } from "./modals/PresetGallery";
 import { ExportModal } from "./modals/ExportModal";
 import { RecorderController } from "./RecorderController";
@@ -64,6 +65,7 @@ export function UIOverlay() {
       <div className="fixed inset-0 z-40" style={{ pointerEvents: "none" }}>
         <RecorderController />
         <RecordingIndicator />
+        <Toaster />
         <CinemaHint />
       </div>
     );
@@ -80,8 +82,9 @@ export function UIOverlay() {
       {/* Headless: drives MediaRecorder from the recording store flag */}
       <RecorderController />
 
-      {/* RecordingIndicator: always at full opacity — rendered OUTSIDE the fade wrapper */}
+      {/* RecordingIndicator + Toaster: always full opacity, outside the fade wrapper */}
       <RecordingIndicator />
+      <Toaster />
 
       {/* Dock: idle-fading */}
       <div

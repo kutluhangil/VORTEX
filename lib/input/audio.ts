@@ -89,7 +89,11 @@ export class AudioAnalyser {
     const energy = f.energy ?? 0;
     if (rms < NOISE_GATE) return;
 
-    // ── Beat detection ────────────────────────────────────────────────────
+    // ── Frequency-band split (Meyda loudness.specific = 24 bark bands) ─────
+    const bands = f.loudness?.specific;
+    const { bass, mid, high } = splitBands(bands, rms);
+
+    // ── Beat detection (bass-weighted energy) ─────────────────────────────
     this.energyHistory.push(energy);
     if (this.energyHistory.length > ENERGY_HISTORY_LEN) this.energyHistory.shift();
     const avg =
@@ -111,23 +115,87 @@ export class AudioAnalyser {
           Math.cos(angle) * force,
           Math.sin(angle) * force,
           getVividPaletteColor(),
-          0.003,
+          0.004,
         );
       }
     }
 
-    // ── Continuous splats proportional to loudness ────────────────────────
-    const count = Math.max(1, Math.floor(rms * sensitivity * 4));
-    const force = rms * sensitivity * 3000;
-    for (let i = 0; i < count; i++) {
+    // ── BASS → big splat near centre, pushing outward ─────────────────────
+    if (bass > 0.12) {
+      const f0 = bass * sensitivity * 6000;
+      const angle = Math.random() * Math.PI * 2;
       this.sim.splat(
-        Math.random(),
-        Math.random(),
-        (Math.random() - 0.5) * force,
-        (Math.random() - 0.5) * force,
-        rndColor(),
-        0.001 + rms * 0.004,
+        0.5 + (Math.random() - 0.5) * 0.2,
+        0.4 + (Math.random() - 0.5) * 0.2,
+        Math.cos(angle) * f0,
+        Math.sin(angle) * f0,
+        getVividPaletteColor(),
+        0.005 + bass * 0.004,
       );
     }
+
+    // ── MID → medium splats at random positions ───────────────────────────
+    if (mid > 0.1) {
+      const count = Math.max(1, Math.floor(mid * sensitivity * 5));
+      const fm = mid * sensitivity * 3500;
+      for (let i = 0; i < count; i++) {
+        this.sim.splat(
+          Math.random(),
+          Math.random(),
+          (Math.random() - 0.5) * fm,
+          (Math.random() - 0.5) * fm,
+          rndColor(),
+          0.0018,
+        );
+      }
+    }
+
+    // ── HIGH → small sparkles near the edges ──────────────────────────────
+    if (high > 0.08) {
+      const count = Math.max(1, Math.floor(high * sensitivity * 6));
+      const fh = high * sensitivity * 2200;
+      for (let i = 0; i < count; i++) {
+        const edge = Math.random() < 0.5 ? Math.random() * 0.2 : 0.8 + Math.random() * 0.2;
+        const along = Math.random();
+        const x = Math.random() < 0.5 ? edge : along;
+        const y = Math.random() < 0.5 ? along : edge;
+        this.sim.splat(
+          x, y,
+          (Math.random() - 0.5) * fh,
+          (Math.random() - 0.5) * fh,
+          getVividPaletteColor(),
+          0.0008,
+        );
+      }
+    }
   }
+}
+
+// Sum the 24 bark bands into bass / mid / high, normalised by overall loudness.
+// Falls back to rms-driven pseudo-bands when specific loudness is unavailable.
+function splitBands(
+  specific: Float32Array | undefined,
+  rms: number,
+): { bass: number; mid: number; high: number } {
+  if (!specific || specific.length < 12) {
+    return { bass: rms * 1.2, mid: rms, high: rms * 0.6 };
+  }
+  const n = specific.length;
+  let bass = 0;
+  let mid = 0;
+  let high = 0;
+  const bassEnd = Math.floor(n * 0.18);
+  const midEnd = Math.floor(n * 0.55);
+  for (let i = 0; i < n; i++) {
+    const v = specific[i] ?? 0;
+    if (i < bassEnd) bass += v;
+    else if (i < midEnd) mid += v;
+    else high += v;
+  }
+  // Bark loudness values are roughly 0–several; scale to ~0–1 working range
+  return {
+    bass: Math.min(1.5, (bass / Math.max(1, bassEnd)) * 0.5),
+    mid: Math.min(1.5, (mid / Math.max(1, midEnd - bassEnd)) * 0.5),
+    high: Math.min(1.5, (high / Math.max(1, n - midEnd)) * 0.5),
+  };
 }

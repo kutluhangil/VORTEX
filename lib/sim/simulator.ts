@@ -37,6 +37,7 @@ export interface SimOptions {
   pressureIterations: number;
   curl: number;
   dissipation: number;
+  velocityDissipation?: number; // viscosity → momentum damping (thicker = higher)
 }
 
 export class FluidSimulator {
@@ -357,7 +358,7 @@ export class FluidSimulator {
     if (u["dt"])
       gl.uniform1f(u["dt"], dt);
     if (u["dissipation"])
-      gl.uniform1f(u["dissipation"], 0.0); // velocity almost no dissipation
+      gl.uniform1f(u["dissipation"], this.opts.velocityDissipation ?? 0.0); // viscosity-driven momentum damping
     this._bindFBO(this.velocity.write);
     this._drawQuad();
     this.velocity.swap();
