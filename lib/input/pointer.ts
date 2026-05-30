@@ -1,4 +1,5 @@
 import type { FluidSimulator } from "@/lib/sim/simulator";
+import { getRandomPaletteColor } from "@/lib/presets/palette";
 
 interface PointerState {
   x: number;
@@ -16,19 +17,9 @@ function toShaderRadius(r: number): number {
   return Math.max(0.0003, r * 0.006);
 }
 
-const SPLAT_COLORS: [number, number, number][] = [
-  [1.0, 0.28, 0.1],
-  [0.1, 0.45, 1.0],
-  [0.85, 0.18, 0.9],
-  [0.15, 0.9, 0.4],
-  [1.0, 0.75, 0.08],
-  [0.08, 0.88, 0.92],
-  [0.95, 0.5, 0.15],
-  [0.55, 0.15, 0.95],
-];
-
+// Colour comes from the active mode/preset palette
 function rndColor(): [number, number, number] {
-  return SPLAT_COLORS[Math.floor(Math.random() * SPLAT_COLORS.length)] ?? [1, 0.4, 0.1];
+  return getRandomPaletteColor();
 }
 
 const IDLE_TIMEOUT = 3000;

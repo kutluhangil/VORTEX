@@ -6,6 +6,8 @@ import { Renderer } from "@/lib/render/renderer";
 import { AudioAnalyser } from "@/lib/input/audio";
 import { WebcamFlow } from "@/lib/input/webcam";
 import { textToObstacleData } from "@/lib/input/obstacle-text";
+import { applyMode } from "@/lib/presets/apply";
+import { getRandomPaletteColor } from "@/lib/presets/palette";
 import { useSimStore } from "@/store/useSimStore";
 import { useRenderStore } from "@/store/useRenderStore";
 import { useInputStore } from "@/store/useInputStore";
@@ -54,6 +56,9 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
 
     globalSimulator = sim;
     globalRenderer = renderer;
+
+    // Apply the active mode so palette + params + fx are initialised
+    applyMode(useRenderStore.getState().activeMode);
     syncRenderStore(renderer);
     seedSplats(sim);
 
@@ -184,20 +189,12 @@ function syncRenderStore(renderer: Renderer): void {
 }
 
 function seedSplats(sim: FluidSimulator, count = 6): void {
-  const colors: [number, number, number][] = [
-    [1.0, 0.3, 0.1],
-    [0.1, 0.5, 1.0],
-    [0.8, 0.2, 0.9],
-    [0.2, 0.9, 0.5],
-    [1.0, 0.8, 0.1],
-    [0.1, 0.8, 0.9],
-  ];
   for (let i = 0; i < count; i++) {
     const x = Math.random();
     const y = Math.random();
     const angle = Math.random() * Math.PI * 2;
     const strength = 200 + Math.random() * 400;
-    const color = colors[i % colors.length] ?? ([1, 1, 1] as [number, number, number]);
+    const color = getRandomPaletteColor();
     for (let j = 0; j < 3; j++) {
       sim.splat(
         x + (Math.random() - 0.5) * 0.05,

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Wind, Waves, Flame, Zap, Sparkles, Paintbrush } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { useRenderStore, type ModeId } from "@/store/useRenderStore";
+import { applyMode } from "@/lib/presets/apply";
 import { DockButton } from "./DockButton";
 
 const MODES: { id: ModeId; label: string; icon: React.ReactNode; color: string }[] = [
@@ -20,7 +21,6 @@ export function ModeSelector() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const activeMode = useRenderStore((s) => s.activeMode);
-  const setMode = useRenderStore((s) => s.setMode);
 
   // Close on outside click
   useEffect(() => {
@@ -68,7 +68,7 @@ export function ModeSelector() {
                   <button
                     key={mode.id}
                     onClick={() => {
-                      setMode(mode.id);
+                      applyMode(mode.id);
                       setOpen(false);
                     }}
                     className={cn(

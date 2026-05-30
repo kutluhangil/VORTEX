@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, Wind, Waves, Flame, Zap, Sparkles, Paintbrush } from "lucide-react";
 import { useUIStore } from "@/store/useUIStore";
-import { useRenderStore, type ModeId } from "@/store/useRenderStore";
+import { type ModeId } from "@/store/useRenderStore";
+import { applyMode } from "@/lib/presets/apply";
 import { useSimStore } from "@/store/useSimStore";
 import { useInputStore } from "@/store/useInputStore";
 import { useRecordStore } from "@/store/useRecordStore";
@@ -38,7 +39,6 @@ export function CommandPalette() {
   const setCinemaMode = useUIStore((s) => s.setCinemaMode);
   const setPresetGalleryOpen = useUIStore((s) => s.setPresetGalleryOpen);
 
-  const setMode = useRenderStore((s) => s.setMode);
   const togglePaused = useSimStore((s) => s.togglePaused);
   const reset = useSimStore((s) => s.reset);
   const setAudioEnabled = useInputStore((s) => s.setAudioEnabled);
@@ -75,7 +75,7 @@ export function CommandPalette() {
       title: `Switch mode: ${name}`,
       icon: modeIcon[id],
       category: "Modes",
-      action: () => { setMode(id); setOpen(false); },
+      action: () => { applyMode(id); setOpen(false); },
     })),
     {
       id: "presets",

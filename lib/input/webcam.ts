@@ -1,4 +1,5 @@
 import type { FluidSimulator } from "@/lib/sim/simulator";
+import { getRandomPaletteColor } from "@/lib/presets/palette";
 
 const W = 128;
 const H = 128;
@@ -6,8 +7,6 @@ const BLOCK_SIZE = 16;
 const BX = W / BLOCK_SIZE; // 8 blocks per row
 const BY = H / BLOCK_SIZE; // 8 blocks per column
 const MOTION_THRESHOLD = 10; // mean diff to consider block as moving
-
-const FLOW_COLOR: [number, number, number] = [0.3, 0.7, 1.0];
 
 export class WebcamFlow {
   private sim: FluidSimulator;
@@ -148,7 +147,7 @@ function _computeFlow(
       const uvY = 1.0 - (by + 0.5) / BY;
       const force = mean * flowStrength * splatForce * 0.04;
 
-      sim.splat(uvX, uvY, nx * force, ny * force, FLOW_COLOR, 0.002);
+      sim.splat(uvX, uvY, nx * force, ny * force, getRandomPaletteColor(), 0.002);
     }
   }
 }

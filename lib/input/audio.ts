@@ -1,4 +1,5 @@
 import type { FluidSimulator } from "@/lib/sim/simulator";
+import { getRandomPaletteColor, getVividPaletteColor } from "@/lib/presets/palette";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MeydaAnalyzer = any;
@@ -14,17 +15,8 @@ const BEAT_THRESHOLD_MULT = 1.7;
 const BEAT_COOLDOWN_MS = 280;
 const ENERGY_HISTORY_LEN = 30;
 
-const AUDIO_COLORS: [number, number, number][] = [
-  [1.0, 0.28, 0.08],
-  [0.08, 0.45, 1.0],
-  [0.9, 0.15, 0.85],
-  [0.15, 0.9, 0.4],
-  [1.0, 0.75, 0.05],
-  [0.05, 0.85, 0.95],
-];
-
 function rndColor(): [number, number, number] {
-  return AUDIO_COLORS[Math.floor(Math.random() * AUDIO_COLORS.length)] ?? [1, 0.3, 0.1];
+  return getRandomPaletteColor();
 }
 
 export class AudioAnalyser {
@@ -118,7 +110,7 @@ export class AudioAnalyser {
           0.5 + Math.sin(angle) * r,
           Math.cos(angle) * force,
           Math.sin(angle) * force,
-          rndColor(),
+          getVividPaletteColor(),
           0.003,
         );
       }

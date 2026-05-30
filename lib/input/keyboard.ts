@@ -2,10 +2,10 @@
 
 import { useEffect } from "react";
 import { useSimStore } from "@/store/useSimStore";
-import { useRenderStore } from "@/store/useRenderStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useInputStore } from "@/store/useInputStore";
 import { useRecordStore } from "@/store/useRecordStore";
+import { applyMode } from "@/lib/presets/apply";
 
 const MODES = ["smoke", "water", "lava", "plasma", "nebula", "ink"] as const;
 
@@ -57,7 +57,7 @@ export function useKeyboardShortcuts(): void {
         case "6": {
           const idx = parseInt(key, 10) - 1;
           const mode = MODES[idx];
-          if (mode) useRenderStore.getState().setMode(mode);
+          if (mode) applyMode(mode);
           break;
         }
 
