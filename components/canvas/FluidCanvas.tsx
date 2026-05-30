@@ -7,13 +7,18 @@ import { Renderer } from "@/lib/render/renderer";
 import { AudioAnalyser } from "@/lib/input/audio";
 import { WebcamFlow } from "@/lib/input/webcam";
 import { textToObstacleData } from "@/lib/input/obstacle-text";
-import { applyMode } from "@/lib/presets/apply";
+import { applyMode, applyPreset } from "@/lib/presets/apply";
+import { PRESET_MAP } from "@/lib/presets/definitions";
 import { applyFromURL } from "@/lib/export/share";
 import { getRandomPaletteColor } from "@/lib/presets/palette";
 import { useSimStore } from "@/store/useSimStore";
 import { useRenderStore } from "@/store/useRenderStore";
+import { usePresetStore } from "@/store/usePresetStore";
 import { useInputStore } from "@/store/useInputStore";
 import { CanvasOverlay } from "./CanvasOverlay";
+
+// First-visit landing preset — vivid, shows off colour + bloom
+const HERO_PRESET = PRESET_MAP["aurora-nights"];
 
 interface FluidCanvasProps {
   embed?: boolean;
@@ -59,10 +64,19 @@ export function FluidCanvas({ embed = false }: FluidCanvasProps) {
     globalSimulator = sim;
     globalRenderer = renderer;
 
-    // Apply the active mode so palette + params + fx are initialised,
-    // then override from URL params (?preset= / ?mode=) if present
-    applyMode(useRenderStore.getState().activeMode);
-    applyFromURL();
+    // Initialise palette + params + fx:
+    //  • URL param (?preset= / ?mode=) wins
+    //  • else first-ever visit → land on a vivid hero preset for the wow factor
+    //  • else the persisted active mode
+    const fromUrl = applyFromURL();
+    if (!fromUrl) {
+      const firstVisit = usePresetStore.getState().activePresetId === null;
+      if (firstVisit && HERO_PRESET) {
+        applyPreset(HERO_PRESET);
+      } else {
+        applyMode(useRenderStore.getState().activeMode);
+      }
+    }
     syncRenderStore(renderer);
     seedSplats(sim);
 

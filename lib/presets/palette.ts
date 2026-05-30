@@ -29,14 +29,14 @@ let activePalette: RGB[] = [
   [0.8, 0.65, 0.97],
 ];
 
-/** Set the active palette from an array of hex strings. Drops the darkest
- *  entry (mode palettes lead with a near-black background colour). */
+/** Set the active palette from an array of hex strings. By convention the
+ *  first entry is the near-black background, so it is always dropped — the
+ *  remaining entries are the dye colours. (Brightness-thresholding was
+ *  unreliable: smoke's #1e1e2e passed and muddied the fluid grey.) */
 export function setActivePalette(hexColors: string[]): void {
   if (!hexColors.length) return;
   const rgb = hexColors.map(hexToRgb01);
-  // Drop the first colour if it's very dark (background, not a dye colour)
-  const filtered = rgb.filter((c) => c[0] + c[1] + c[2] > 0.35);
-  activePalette = filtered.length ? filtered : rgb;
+  activePalette = rgb.length > 1 ? rgb.slice(1) : rgb;
 }
 
 export function getActivePalette(): RGB[] {
