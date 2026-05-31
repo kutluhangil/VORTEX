@@ -9,6 +9,7 @@ uniform sampler2D uVelocity;
 uniform sampler2D uSource;
 uniform vec2 texelSize;
 uniform vec2 dyeTexelSize;
+uniform vec2 velScale;   // (1,1) on square grids; damps the long axis on wide grids
 uniform float dt;
 uniform float dissipation;
 
@@ -24,7 +25,10 @@ vec4 bilerp (sampler2D sam, vec2 uv, vec2 tSize) {
 }
 
 void main () {
-    vec2 coord = vUv - dt * bilerp(uVelocity, vUv, texelSize).xy;
+    // velScale keeps the advected displacement isotropic in screen space on
+    // non-square (ultrawide) grids — without it, horizontal motion drifts
+    // faster than vertical and the field looks stretched.
+    vec2 coord = vUv - dt * bilerp(uVelocity, vUv, texelSize).xy * velScale;
     vec4 result = bilerp(uSource, coord, dyeTexelSize);
     float decay = 1.0 + dissipation * dt;
     outColor = result / decay;

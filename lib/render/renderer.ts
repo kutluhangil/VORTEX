@@ -59,13 +59,18 @@ export class Renderer {
     const { gl, canvas, sim } = this;
     const density = sim.density.read;
 
+    // Keep post-fx buffers at the canvas aspect so glow/rays aren't stretched
+    const aspect = canvas.height > 0 ? canvas.width / canvas.height : 1;
+
     // ── Bloom ──────────────────────────────────────────────────────────────
     if (this.bloomEnabled) {
+      this.bloom.resize(aspect);
       this.bloom.apply(density, () => this._drawQuad());
     }
 
     // ── Sunrays ────────────────────────────────────────────────────────────
     if (this.sunraysEnabled) {
+      this.sunrays.resize(aspect);
       this.sunrays.apply(density, () => this._drawQuad());
     }
 

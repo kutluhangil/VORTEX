@@ -137,6 +137,22 @@ export class FluidSimulator {
 
   // ─── FBOs ────────────────────────────────────────────────────────────────────
 
+  /**
+   * Aspect-aware grid size: the SHORTER screen axis gets `base` cells, the
+   * LONGER axis gets `base * aspect`. Keeps grid cells square so the fluid is
+   * never stretched — wide/ultrawide screens just reveal more horizontal
+   * domain instead of distorting the existing field.
+   */
+  private _aspectResolution(base: number): { width: number; height: number } {
+    const w = this.canvas.width || 1;
+    const h = this.canvas.height || 1;
+    let aspect = w / h;
+    if (aspect < 1) aspect = 1 / aspect;
+    const min = Math.round(base);
+    const max = Math.round(base * aspect);
+    return w > h ? { width: max, height: min } : { width: min, height: max };
+  }
+
   private _initFBOs(simRes: number, dyeRes: number): void {
     const { gl } = this;
 
@@ -144,18 +160,22 @@ export class FluidSimulator {
     const HALF_FLOAT = gl.HALF_FLOAT;
     const NEAREST = gl.NEAREST;
 
+    // Aspect-correct grid dimensions (square cells, no horizontal stretch)
+    const sim = this._aspectResolution(simRes);
+    const dye = this._aspectResolution(dyeRes);
+
     // Velocity: RG16F
-    this.velocity = createDoubleFBO(gl, simRes, simRes, gl.RG16F, gl.RG, HALF_FLOAT, NEAREST);
+    this.velocity = createDoubleFBO(gl, sim.width, sim.height, gl.RG16F, gl.RG, HALF_FLOAT, NEAREST);
     // Density: RGBA16F
-    this.density = createDoubleFBO(gl, dyeRes, dyeRes, gl.RGBA16F, gl.RGBA, HALF_FLOAT, NEAREST);
+    this.density = createDoubleFBO(gl, dye.width, dye.height, gl.RGBA16F, gl.RGBA, HALF_FLOAT, NEAREST);
     // Pressure: R16F
-    this.pressure = createDoubleFBO(gl, simRes, simRes, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
+    this.pressure = createDoubleFBO(gl, sim.width, sim.height, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
     // Divergence: R16F (single)
-    this.divergence = createFBO(gl, simRes, simRes, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
+    this.divergence = createFBO(gl, sim.width, sim.height, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
     // Curl: R16F (single)
-    this.curl = createFBO(gl, simRes, simRes, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
+    this.curl = createFBO(gl, sim.width, sim.height, gl.R16F, gl.RED, HALF_FLOAT, NEAREST);
     // Obstacle: R8 (single, white = obstacle, black = fluid)
-    this.obstacle = createFBO(gl, simRes, simRes, gl.R8, gl.RED, gl.UNSIGNED_BYTE, gl.LINEAR);
+    this.obstacle = createFBO(gl, sim.width, sim.height, gl.R8, gl.RED, gl.UNSIGNED_BYTE, gl.LINEAR);
 
     // Clear obstacle to black (no obstacles)
     this._clearObstacle();
@@ -343,14 +363,25 @@ export class FluidSimulator {
     this.velocity.swap();
   }
 
+  /** Isotropy correction for advection: short axis = 1, long axis = short/long. */
+  private _velScale(): [number, number] {
+    const w = this.velocity.width;
+    const h = this.velocity.height;
+    const min = Math.min(w, h);
+    return [min / w, min / h];
+  }
+
   private _stepAdvectVelocity(dt: number): void {
     const { gl } = this;
+    const [vsx, vsy] = this._velScale();
     this.advectionProg.bind();
     const u = this.advectionProg.uniforms;
     if (u["texelSize"])
       gl.uniform2f(u["texelSize"], this.velocity.texelSizeX, this.velocity.texelSizeY);
     if (u["dyeTexelSize"])
       gl.uniform2f(u["dyeTexelSize"], this.velocity.texelSizeX, this.velocity.texelSizeY);
+    if (u["velScale"])
+      gl.uniform2f(u["velScale"], vsx, vsy);
     if (u["uVelocity"])
       gl.uniform1i(u["uVelocity"], this.velocity.read.attach(0));
     if (u["uSource"])
@@ -366,12 +397,15 @@ export class FluidSimulator {
 
   private _stepAdvectDensity(dt: number): void {
     const { gl } = this;
+    const [vsx, vsy] = this._velScale();
     this.advectionProg.bind();
     const u = this.advectionProg.uniforms;
     if (u["texelSize"])
       gl.uniform2f(u["texelSize"], this.velocity.texelSizeX, this.velocity.texelSizeY);
     if (u["dyeTexelSize"])
       gl.uniform2f(u["dyeTexelSize"], this.density.texelSizeX, this.density.texelSizeY);
+    if (u["velScale"])
+      gl.uniform2f(u["velScale"], vsx, vsy);
     if (u["uVelocity"])
       gl.uniform1i(u["uVelocity"], this.velocity.read.attach(0));
     if (u["uSource"])
@@ -491,10 +525,12 @@ export class FluidSimulator {
 
   resize(width: number, height: number): void {
     const { opts } = this;
-    this._deleteFBOs();
-    this._initFBOs(opts.simResolution, opts.dyeResolution);
+    // Canvas size must be set BEFORE rebuilding FBOs — _initFBOs reads the
+    // canvas aspect to size the grid (otherwise resize keeps the old aspect).
     this.canvas.width = width;
     this.canvas.height = height;
+    this._deleteFBOs();
+    this._initFBOs(opts.simResolution, opts.dyeResolution);
   }
 
   /**

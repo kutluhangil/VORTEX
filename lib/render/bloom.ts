@@ -6,7 +6,7 @@ import blurFrag from "./shaders/bloom-blur.frag.glsl";
 import finalFrag from "./shaders/bloom-final.frag.glsl";
 
 const BLOOM_LEVELS = 3;
-const BLOOM_RES = 256;
+const BLOOM_RES = 256; // applied to the short axis; long axis scales with aspect
 
 export class BloomPass {
   private gl: WebGL2RenderingContext;
@@ -14,6 +14,7 @@ export class BloomPass {
   private blurProg: Program;
   private finalProg: Program;
   private fbos: DoubleFBO[];
+  private aspect = 1;
 
   threshold = 0.6;
   knee = 0.35;
@@ -26,11 +27,20 @@ export class BloomPass {
     this.fbos = this._createFBOs();
   }
 
+  /** Rebuild bloom mips to match the canvas aspect (no-op if unchanged). */
+  resize(aspect: number): void {
+    if (Math.abs(aspect - this.aspect) < 0.001) return;
+    this.aspect = aspect;
+    for (const fbo of this.fbos) deleteDoubleFBO(this.gl, fbo);
+    this.fbos = this._createFBOs();
+  }
+
   private _createFBOs(): DoubleFBO[] {
     const { gl } = this;
     const arr: DoubleFBO[] = [];
-    let w = BLOOM_RES;
-    let h = BLOOM_RES;
+    // Short axis = BLOOM_RES, long axis scaled by aspect → square pixels
+    let w = this.aspect >= 1 ? Math.round(BLOOM_RES * this.aspect) : BLOOM_RES;
+    let h = this.aspect >= 1 ? BLOOM_RES : Math.round(BLOOM_RES / this.aspect);
     for (let i = 0; i < BLOOM_LEVELS; i++) {
       arr.push(createDoubleFBO(gl, w, h, gl.RGBA16F, gl.RGBA, gl.HALF_FLOAT, gl.LINEAR));
       w = Math.max(1, w >> 1);
